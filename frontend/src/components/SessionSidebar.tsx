@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface Session {
   id: string
@@ -23,7 +22,7 @@ export function SessionSidebar({
   onDeleteSession,
 }: SessionSidebarProps) {
   return (
-    <div className="w-[200px] border-r border-border flex flex-col bg-card">
+    <div className="w-[200px] h-full border-r border-border flex flex-col bg-card overflow-hidden">
       {/* New Chat Button */}
       <div className="p-2">
         <Button
@@ -38,7 +37,7 @@ export function SessionSidebar({
       </div>
 
       {/* Sessions List */}
-      <ScrollArea className="flex-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="px-2 py-1">
           {sessions.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">
@@ -80,7 +79,7 @@ export function SessionSidebar({
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }
