@@ -18,7 +18,12 @@ function generatePlaceholderName(): string {
   return `${adj} ${noun}`
 }
 
-export function useSession() {
+interface UseSessionCallbacks {
+  onUploadStart?: () => void
+  onUploadComplete?: () => void
+}
+
+export function useSession(callbacks?: UseSessionCallbacks) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [session, setSession] = useState<Session | null>(null)
   const [files, setFiles] = useState<FileInfo[]>([])
@@ -139,6 +144,9 @@ export function useSession() {
     async (filesToUpload: File[]) => {
       if (!session) return
 
+      // Notify upload is starting (show "Uploading..." status)
+      callbacks?.onUploadStart?.()
+
       try {
         const uploaded = await uploadFiles(session.id, filesToUpload)
         setFiles((prev) => [...prev, ...uploaded])
@@ -154,12 +162,15 @@ export function useSession() {
         // Clear warmed status for this session since sandbox was invalidated
         // The backend automatically re-warms, but clear tracking just in case
         warmedSessions.current.delete(session.id)
+
+        // Notify upload complete (now sandbox is warming)
+        callbacks?.onUploadComplete?.()
       } catch (err) {
         setError('Failed to upload files')
         console.error(err)
       }
     },
-    [session]
+    [session, callbacks]
   )
 
   const handleDeleteFile = useCallback(

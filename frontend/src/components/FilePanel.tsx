@@ -254,6 +254,47 @@ function AnimatedUploadIcon({ isDragging, isUploading }: { isDragging: boolean; 
   )
 }
 
+// Uploading overlay for non-empty file panel
+function UploadingOverlay() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="absolute inset-0 m-2 rounded-xl z-10 overflow-hidden"
+    >
+      {/* Semi-transparent backdrop */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-xl" />
+
+      {/* Center content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+        <motion.div
+          className="w-12 h-12 rounded-full bg-muted/50 border border-border/50 flex items-center justify-center"
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          <motion.div
+            animate={{ y: [-2, 2, -2] }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+          >
+            <Upload className="h-5 w-5 text-foreground" />
+          </motion.div>
+        </motion.div>
+
+        <motion.p
+          className="text-sm text-foreground font-medium"
+          animate={{ opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 1.2, repeat: Infinity }}
+        >
+          Uploading...
+        </motion.p>
+        <p className="text-xs text-muted-foreground">Preparing sandbox</p>
+      </div>
+    </motion.div>
+  )
+}
+
 const fileListContainerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -598,6 +639,11 @@ export function FilePanel({ files, sessionId, onUpload, onDelete, width, onWidth
         ) : (
           /* Has files - animated list */
           <>
+            {/* Upload progress overlay */}
+            <AnimatePresence>
+              {isUploading && <UploadingOverlay />}
+            </AnimatePresence>
+
             {/* File List */}
             <ScrollArea className="flex-1 px-3 pt-3">
               <motion.div

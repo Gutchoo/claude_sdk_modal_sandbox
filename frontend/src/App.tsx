@@ -13,7 +13,19 @@ import { Input } from '@/components/ui/input'
 function App() {
   const [panelWidth, setPanelWidth] = useState(280)
   const [sandboxStatus, setSandboxStatus] = useState<SandboxStatus | null>(null)
+  const [pollingInterval, setPollingInterval] = useState(2000)
   const { theme, toggleTheme } = useTheme()
+
+  // Callbacks for file upload lifecycle
+  const handleUploadStart = useCallback(() => {
+    setSandboxStatus({ status: 'uploading' })
+  }, [])
+
+  const handleUploadComplete = useCallback(() => {
+    setSandboxStatus({ status: 'warming' })
+    setPollingInterval(500) // Poll faster during warmup
+  }, [])
+
   const {
     sessions,
     session,
@@ -26,7 +38,10 @@ function App() {
     uploadFiles,
     deleteFile,
     triggerWarmup,
-  } = useSession()
+  } = useSession({
+    onUploadStart: handleUploadStart,
+    onUploadComplete: handleUploadComplete,
+  })
 
   // State for inline session name editing
   const [isEditingName, setIsEditingName] = useState(false)
@@ -65,7 +80,7 @@ function App() {
   const { messages, isConnected, isLoading: chatLoading, streamingStatus, elapsedTime, sendMessage, stopGeneration } = useWebSocket(session?.id || null)
 
 
-  // Poll sandbox status every 2 seconds
+  // Poll sandbox status with dynamic interval
   // This is the single source of truth for sandbox state
   const fetchSandboxStatus = useCallback(async () => {
     if (!session?.id) {
@@ -74,25 +89,54 @@ function App() {
     }
     try {
       const status = await getSandboxStatus(session.id)
-      // Only update if not warming (warming state is managed locally)
+      // Preserve local states (uploading/warming) until sandbox is actually running
       setSandboxStatus(prev => {
-        if (prev?.status === 'warming' && status.status !== 'running') {
+        if (prev?.status === 'uploading') {
+          // Keep showing "uploading" - this state is managed by upload callbacks
+          return prev
+        }
+        if (prev?.status === 'warming') {
           // Keep showing "warming" until sandbox is actually running
+          // (not_found/terminated are transient states during warmup)
+          if (status.status === 'running') {
+            return status
+          }
           return prev
         }
         return status
       })
+
+      // Adjust polling interval based on status
+      if (status.status === 'warming') {
+        setPollingInterval(500)  // Fast during warmup
+      } else if (status.status === 'running') {
+        setPollingInterval(3000)  // Slow when stable
+      } else {
+        setPollingInterval(2000)  // Default
+      }
     } catch (err) {
       console.error('Failed to fetch sandbox status:', err)
       setSandboxStatus({ status: 'error', error: 'Failed to fetch status' })
     }
   }, [session?.id])
 
+  // Track if we've done the initial fetch
+  const initialFetchDone = useRef(false)
+
   useEffect(() => {
-    fetchSandboxStatus()
-    const interval = setInterval(fetchSandboxStatus, 2000) // Poll every 2 seconds
+    // Only fetch immediately on first mount, not when pollingInterval changes
+    if (!initialFetchDone.current) {
+      fetchSandboxStatus()
+      initialFetchDone.current = true
+    }
+    const interval = setInterval(fetchSandboxStatus, pollingInterval)
     return () => clearInterval(interval)
-  }, [fetchSandboxStatus])
+  }, [fetchSandboxStatus, pollingInterval])
+
+  // Reset initial fetch flag when session changes
+  useEffect(() => {
+    initialFetchDone.current = false
+  }, [session?.id])
 
   // When session changes, check if we need to warm up the sandbox
   useEffect(() => {
@@ -103,11 +147,13 @@ function App() {
       if (status.status !== 'running') {
         // Set local warming state and trigger warmup
         setSandboxStatus({ status: 'warming' })
+        setPollingInterval(500) // Poll faster during warmup
         triggerWarmup(session.id)
       }
     }).catch(() => {
       // On error, try to warm up anyway
       setSandboxStatus({ status: 'warming' })
+      setPollingInterval(500) // Poll faster during warmup
       triggerWarmup(session.id)
     })
   }, [session?.id, triggerWarmup])
@@ -285,6 +331,8 @@ function SandboxStatusBadge({ status }: { status: SandboxStatus | null }) {
     switch (status.status) {
       case 'running':
         return { label: 'Sandbox Ready', color: 'bg-green-500', tooltip: 'Sandbox and worker are ready', animate: false }
+      case 'uploading':
+        return { label: 'Uploading...', color: 'bg-blue-500', tooltip: 'Uploading files to sandbox...', animate: true }
       case 'warming':
         return { label: 'Warming Up...', color: 'bg-blue-500', tooltip: 'Worker is initializing...', animate: true }
       case 'not_found':

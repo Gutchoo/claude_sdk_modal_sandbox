@@ -8,7 +8,7 @@ export interface Session {
 }
 
 export interface SandboxStatus {
-  status: 'running' | 'not_found' | 'terminated' | 'error' | 'warming'
+  status: 'running' | 'not_found' | 'terminated' | 'error' | 'warming' | 'uploading'
   sandbox_name?: string
   exit_code?: number
   error?: string
