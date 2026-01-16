@@ -64,41 +64,194 @@ const FILE_TYPE_ICONS: Record<string, typeof File> = {
   doc: FileText,
 }
 
-// Animation variants
-const dropZoneVariants = {
-  idle: {
-    borderColor: 'hsl(var(--muted-foreground) / 0.25)',
-    boxShadow: '0 0 0 0 hsl(var(--primary) / 0)',
-  },
-  dragging: {
-    borderColor: 'hsl(var(--primary))',
-    boxShadow: [
-      '0 0 0 0 hsl(var(--primary) / 0.4)',
-      '0 0 0 8px hsl(var(--primary) / 0)',
-    ],
-    transition: {
-      boxShadow: {
-        duration: 1.5,
+// Floating particle component for the dropzone
+function FloatingParticle({
+  index,
+  isDragging
+}: {
+  index: number
+  isDragging: boolean
+}) {
+  const baseDelay = index * 0.15
+  const size = 3 + (index % 3)
+  const initialX = 20 + (index * 37) % 60
+  const initialY = 20 + (index * 23) % 60
+
+  return (
+    <motion.div
+      className="absolute rounded-full bg-foreground/10 dark:bg-foreground/20"
+      style={{
+        width: size,
+        height: size,
+        left: `${initialX}%`,
+        top: `${initialY}%`,
+      }}
+      animate={isDragging ? {
+        y: [0, -12, 0],
+        x: [0, (index % 2 === 0 ? 6 : -6), 0],
+        scale: [1, 1.5, 1],
+        opacity: [0.3, 0.8, 0.3],
+      } : {
+        y: [0, -4, 0],
+        opacity: [0.15, 0.25, 0.15],
+      }}
+      transition={{
+        duration: isDragging ? 1.5 : 3,
         repeat: Infinity,
-        ease: 'easeOut',
-      },
-      borderColor: {
-        duration: 0.2,
-      },
-    },
-  },
+        delay: baseDelay,
+        ease: "easeInOut",
+      }}
+    />
+  )
 }
 
-const uploadIconVariants = {
-  idle: { y: 0, scale: 1 },
-  dragging: {
-    y: [-4, 0, -4],
-    scale: 1.1,
-    transition: {
-      y: { duration: 1, repeat: Infinity, ease: 'easeInOut' },
-      scale: { duration: 0.2 },
-    },
-  },
+// Animated border gradient component
+function AnimatedBorderGradient({ isDragging }: { isDragging: boolean }) {
+  return (
+    <motion.div
+      className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isDragging ? 1 : 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div
+        className="absolute inset-[-2px] rounded-xl"
+        style={{
+          background: 'conic-gradient(from 0deg, transparent, hsl(var(--foreground) / 0.4), transparent, hsl(var(--foreground) / 0.2), transparent)',
+        }}
+        animate={{
+          rotate: [0, 360],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: "linear",
+        }}
+      />
+      <div className="absolute inset-[1px] rounded-xl bg-card" />
+    </motion.div>
+  )
+}
+
+// Ripple effect on successful drop
+function DropRipple({ isActive }: { isActive: boolean }) {
+  return (
+    <AnimatePresence>
+      {isActive && (
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute w-16 h-16 rounded-full border border-foreground/30"
+              initial={{ scale: 0.5, opacity: 0.8 }}
+              animate={{ scale: 3, opacity: 0 }}
+              transition={{
+                duration: 0.8,
+                delay: i * 0.15,
+                ease: "easeOut",
+              }}
+            />
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+// Upload icon with sophisticated animation
+function AnimatedUploadIcon({ isDragging, isUploading }: { isDragging: boolean; isUploading: boolean }) {
+  return (
+    <div className="relative w-14 h-14 mx-auto">
+      {/* Outer glow ring */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        animate={isDragging ? {
+          boxShadow: [
+            '0 0 0 0 hsl(var(--foreground) / 0)',
+            '0 0 0 8px hsl(var(--foreground) / 0.1)',
+            '0 0 0 0 hsl(var(--foreground) / 0)',
+          ],
+        } : {}}
+        transition={{ duration: 1.5, repeat: Infinity }}
+      />
+
+      {/* Icon container with glass effect */}
+      <motion.div
+        className="absolute inset-0 rounded-full bg-muted/50 dark:bg-muted/30 backdrop-blur-sm border border-border/50 flex items-center justify-center"
+        animate={isDragging ? {
+          scale: [1, 1.08, 1],
+          borderColor: ['hsl(var(--border) / 0.5)', 'hsl(var(--foreground) / 0.3)', 'hsl(var(--border) / 0.5)'],
+        } : {
+          scale: 1,
+        }}
+        transition={{
+          duration: 1.5,
+          repeat: isDragging ? Infinity : 0,
+          ease: "easeInOut",
+        }}
+      >
+        <motion.div
+          animate={isDragging ? {
+            y: [-3, 3, -3],
+            rotate: [0, 5, -5, 0],
+          } : isUploading ? {
+            y: [0, -2, 0],
+          } : {
+            y: 0,
+            rotate: 0,
+          }}
+          transition={{
+            duration: isDragging ? 1.2 : 0.8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        >
+          <Upload
+            className={cn(
+              "h-6 w-6 transition-colors duration-300",
+              isDragging ? "text-foreground" : "text-muted-foreground"
+            )}
+          />
+        </motion.div>
+      </motion.div>
+
+      {/* Orbiting dots when dragging */}
+      <AnimatePresence>
+        {isDragging && (
+          <>
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1.5 h-1.5 rounded-full bg-foreground/40"
+                style={{
+                  top: '50%',
+                  left: '50%',
+                }}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{
+                  opacity: [0, 1, 0],
+                  scale: [0.5, 1, 0.5],
+                  x: [0, Math.cos((i * 120 * Math.PI) / 180) * 32, 0],
+                  y: [0, Math.sin((i * 120 * Math.PI) / 180) * 32, 0],
+                }}
+                exit={{ opacity: 0, scale: 0 }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  delay: i * 0.3,
+                  ease: "easeInOut",
+                }}
+              />
+            ))}
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }
 
 const fileListContainerVariants = {
@@ -124,7 +277,7 @@ const fileItemVariants = {
     scale: 1,
     transition: {
       duration: 0.25,
-      ease: [0.25, 0.1, 0.25, 1],
+      ease: [0.25, 0.1, 0.25, 1] as const,
     },
   },
   exit: {
@@ -133,7 +286,7 @@ const fileItemVariants = {
     scale: 0.95,
     transition: {
       duration: 0.2,
-      ease: 'easeIn',
+      ease: 'easeIn' as const,
     },
   },
 }
@@ -319,53 +472,129 @@ export function FilePanel({ files, sessionId, onUpload, onDelete, width, onWidth
         onDrop={handleDrop}
       >
         {files.length === 0 ? (
-          /* Empty state - animated drop zone */
-          <div className="flex-1 flex items-center justify-center p-3">
+          /* Empty state - sophisticated animated drop zone (full panel) */
+          <motion.div
+            className={cn(
+              'flex-1 flex flex-col items-center justify-center relative overflow-hidden',
+              'bg-gradient-to-b from-muted/20 via-transparent to-muted/10',
+              isUploading && 'opacity-50 pointer-events-none'
+            )}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            {/* Animated rotating border gradient */}
+            <AnimatedBorderGradient isDragging={isDragging} />
+
+            {/* Subtle background pattern */}
+            <div
+              className="absolute inset-0 opacity-[0.02] pointer-events-none"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+                backgroundSize: '20px 20px',
+              }}
+            />
+
+            {/* Ambient glow when dragging */}
             <motion.div
-              className={cn(
-                'w-full p-6 border-2 border-dashed rounded-xl relative overflow-hidden',
-                isUploading && 'opacity-50 pointer-events-none'
-              )}
-              variants={dropZoneVariants}
-              animate={isDragging ? 'dragging' : 'idle'}
-            >
-              {/* Background gradient glow when dragging */}
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse at center, hsl(var(--foreground) / 0.08) 0%, transparent 70%)',
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isDragging ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+            />
+
+            {/* Floating particles - spread across full panel */}
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <FloatingParticle key={i} index={i} isDragging={isDragging} />
+            ))}
+
+            <div className="text-center relative z-10">
+              {/* Animated upload icon */}
+              <AnimatedUploadIcon isDragging={isDragging} isUploading={isUploading} />
+
+              {/* Text with animation */}
               <motion.div
-                className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isDragging ? 1 : 0 }}
+                className="mt-4 mb-4"
+                animate={isDragging ? { y: -2 } : { y: 0 }}
                 transition={{ duration: 0.2 }}
-              />
-
-              <div className="text-center relative z-10">
-                <motion.div
-                  variants={uploadIconVariants}
-                  animate={isDragging ? 'dragging' : 'idle'}
-                  className="mx-auto w-fit"
+              >
+                <motion.p
+                  className={cn(
+                    "text-sm font-medium transition-colors duration-300",
+                    isDragging ? "text-foreground" : "text-muted-foreground"
+                  )}
                 >
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                </motion.div>
-
-                <p className="text-sm text-muted-foreground mt-3 mb-3">
-                  {isUploading ? 'Uploading...' : 'Drag & drop files here'}
+                  {isUploading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <motion.span
+                        animate={{ opacity: [1, 0.5, 1] }}
+                        transition={{ duration: 1.2, repeat: Infinity }}
+                      >
+                        Uploading
+                      </motion.span>
+                      <motion.span
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+                      >
+                        •
+                      </motion.span>
+                      <motion.span
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+                      >
+                        •
+                      </motion.span>
+                      <motion.span
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: 0.6 }}
+                      >
+                        •
+                      </motion.span>
+                    </span>
+                  ) : isDragging ? (
+                    'Release to upload'
+                  ) : (
+                    'Drop files here'
+                  )}
+                </motion.p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  PDF, Excel, images & more
                 </p>
+              </motion.div>
 
-                <label>
-                  <input
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp"
+              {/* Browse button with hover effect */}
+              <label>
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.xlsx,.xls,.docx,.doc,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp"
+                  disabled={isUploading}
+                />
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
                     disabled={isUploading}
-                  />
-                  <Button variant="outline" size="sm" asChild disabled={isUploading}>
-                    <span className="cursor-pointer">Browse Files</span>
+                    className="bg-background/50 backdrop-blur-sm hover:bg-background/80 border-border/50 hover:border-border transition-all duration-200"
+                  >
+                    <span className="cursor-pointer px-4">Browse</span>
                   </Button>
-                </label>
-              </div>
-            </motion.div>
-          </div>
+                </motion.div>
+              </label>
+            </div>
+
+            {/* Ripple effect container */}
+            <DropRipple isActive={false} />
+          </motion.div>
         ) : (
           /* Has files - animated list */
           <>
@@ -390,7 +619,7 @@ export function FilePanel({ files, sessionId, onUpload, onDelete, width, onWidth
               </motion.div>
             </ScrollArea>
 
-            {/* Animated drag overlay */}
+            {/* Sophisticated drag overlay */}
             <AnimatePresence>
               {isDragging && (
                 <motion.div
@@ -398,26 +627,80 @@ export function FilePanel({ files, sessionId, onUpload, onDelete, width, onWidth
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute inset-0 m-2 rounded-xl z-10 pointer-events-none"
+                  className="absolute inset-0 m-2 rounded-xl z-10 pointer-events-none overflow-hidden"
                 >
+                  {/* Animated rotating border */}
                   <motion.div
-                    className="absolute inset-0 rounded-xl border-2 border-dashed border-primary bg-primary/5 backdrop-blur-[2px]"
-                    animate={{
-                      boxShadow: [
-                        'inset 0 0 20px 0 hsl(var(--primary) / 0.1)',
-                        'inset 0 0 40px 0 hsl(var(--primary) / 0.2)',
-                        'inset 0 0 20px 0 hsl(var(--primary) / 0.1)',
-                      ],
+                    className="absolute inset-[-2px] rounded-xl"
+                    style={{
+                      background: 'conic-gradient(from 0deg, transparent, hsl(var(--foreground) / 0.5), transparent, hsl(var(--foreground) / 0.3), transparent)',
                     }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
+                    animate={{ rotate: [0, 360] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
                   />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <motion.p
-                      className="text-sm text-primary font-medium"
-                      animate={{ y: [-2, 2, -2] }}
-                      transition={{ duration: 1, repeat: Infinity }}
+
+                  {/* Inner background */}
+                  <div className="absolute inset-[1px] rounded-xl bg-card/95 backdrop-blur-sm" />
+
+                  {/* Ambient glow */}
+                  <motion.div
+                    className="absolute inset-0 rounded-xl"
+                    style={{
+                      background: 'radial-gradient(ellipse at center, hsl(var(--foreground) / 0.06) 0%, transparent 60%)',
+                    }}
+                    animate={{
+                      opacity: [0.5, 1, 0.5],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+
+                  {/* Floating particles in overlay */}
+                  {[0, 1, 2, 3].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-1 h-1 rounded-full bg-foreground/30"
+                      style={{
+                        left: `${25 + i * 20}%`,
+                        top: `${30 + (i % 2) * 40}%`,
+                      }}
+                      animate={{
+                        y: [0, -15, 0],
+                        opacity: [0.2, 0.6, 0.2],
+                        scale: [1, 1.3, 1],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+
+                  {/* Center content */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    {/* Animated icon */}
+                    <motion.div
+                      className="w-12 h-12 rounded-full bg-muted/50 border border-border/50 flex items-center justify-center"
+                      animate={{
+                        scale: [1, 1.05, 1],
+                        borderColor: ['hsl(var(--border) / 0.5)', 'hsl(var(--foreground) / 0.3)', 'hsl(var(--border) / 0.5)'],
+                      }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
                     >
-                      Drop files here
+                      <motion.div
+                        animate={{ y: [-2, 2, -2] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                      >
+                        <Upload className="h-5 w-5 text-foreground" />
+                      </motion.div>
+                    </motion.div>
+
+                    <motion.p
+                      className="text-sm text-foreground font-medium"
+                      animate={{ opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      Release to add files
                     </motion.p>
                   </div>
                 </motion.div>
