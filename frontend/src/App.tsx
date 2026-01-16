@@ -284,9 +284,9 @@ function SandboxStatusBadge({ status }: { status: SandboxStatus | null }) {
 
     switch (status.status) {
       case 'running':
-        return { label: 'Sandbox Active', color: 'bg-green-500', tooltip: 'Sandbox is running', animate: false }
+        return { label: 'Sandbox Ready', color: 'bg-green-500', tooltip: 'Sandbox and worker are ready', animate: false }
       case 'warming':
-        return { label: 'Warming Up...', color: 'bg-blue-500', tooltip: 'Creating sandbox container...', animate: true }
+        return { label: 'Warming Up...', color: 'bg-blue-500', tooltip: 'Worker is initializing...', animate: true }
       case 'not_found':
         return { label: 'No Sandbox', color: 'bg-gray-400', tooltip: 'Send a message to create a sandbox', animate: false }
       case 'terminated':

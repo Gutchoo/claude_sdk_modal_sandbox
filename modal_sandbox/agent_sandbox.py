@@ -1119,10 +1119,18 @@ def run_agent_streaming(
         # Warm sandbox - tools already exist, skip everything
         yield json_module.dumps({"type": "timing", "phase": "skip_tool_files", "duration_ms": 0, "elapsed_ms": round((time.time() - total_start) * 1000, 1), "reason": "warm_sandbox"})
 
-        # Check if persistent worker is available (should be ready from warm_sandbox)
+        # Check if persistent worker is available, wait if not ready yet
         t0 = time.time()
-        worker_check = sb.exec("test", "-f", "/tmp/worker_ready")
-        worker_available = worker_check.wait() == 0
+        worker_available = False
+        worker_wait_timeout = 30  # Wait up to 30 seconds for worker to be ready
+
+        while (time.time() - t0) < worker_wait_timeout:
+            worker_check = sb.exec("test", "-f", "/tmp/worker_ready")
+            if worker_check.wait() == 0:
+                worker_available = True
+                break
+            time.sleep(0.3)
+
         timings["worker_check"] = (time.time() - t0) * 1000
         yield emit_timing("worker_check", timings["worker_check"])
 
@@ -1357,14 +1365,20 @@ def warm_sandbox(account_id: str, session_id: str) -> dict:
 
 @app.function(timeout=10)
 def get_sandbox_status(account_id: str, session_id: str) -> dict:
-    """Check if sandbox exists and is running."""
+    """Check if sandbox exists, is running, and has worker ready."""
     sandbox_name = f"agent-{account_id}-{session_id}".replace(".", "-")[:63]
 
     try:
         sb = modal.Sandbox.from_name(app_name=app.name, name=sandbox_name)
         exit_code = sb.poll()
         if exit_code is None:
-            return {"status": "running", "sandbox_name": sandbox_name}
+            # Sandbox is running, check if worker is ready
+            worker_check = sb.exec("test", "-f", "/tmp/worker_ready")
+            worker_ready = worker_check.wait() == 0
+            if worker_ready:
+                return {"status": "running", "sandbox_name": sandbox_name, "worker_ready": True}
+            else:
+                return {"status": "warming", "sandbox_name": sandbox_name, "worker_ready": False}
         else:
             return {"status": "terminated", "sandbox_name": sandbox_name, "exit_code": exit_code}
     except modal.exception.NotFoundError:
