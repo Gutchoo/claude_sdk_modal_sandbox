@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, createContext, useContext, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Skeleton } from '@/components/ui/skeleton'
 import { TipTapChatInput } from '@/components/ChatInput'
 import type { Message, StreamingStatus, ToolCall } from '@/hooks/useWebSocket'
 import type { FileInfo } from '@/lib/api'
@@ -218,15 +217,6 @@ export function ChatInterface({
               tool={streamingStatus.currentTool}
               toolInput={streamingStatus.toolInput}
             />
-          )}
-          {/* Loading skeleton when waiting but no streaming status */}
-          {isLoading && !streamingStatus?.isActive && messages.length > 0 && !messages[messages.length - 1]?.isStreaming && (
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-5 w-1/2" />
-              </div>
-            </div>
           )}
           {/* Scroll anchor */}
           <div ref={bottomRef} />

@@ -518,8 +518,23 @@ export function useWebSocket(sessionId: string | null) {
         timestamp: new Date(),
         fileMentions: fileMentions && fileMentions.length > 0 ? fileMentions : undefined,
       }
-      setMessages((prev) => [...prev, userMessage])
+
+      // Create assistant message immediately in "Thinking..." state
+      const assistantMessageId = crypto.randomUUID()
+      streamingMessageIdRef.current = assistantMessageId
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        isStreaming: true,
+        toolCalls: [],
+        contentBlocks: [],
+      }
+
+      setMessages((prev) => [...prev, userMessage, assistantMessage])
       setIsLoading(true)
+      setStreamingStatus({ isActive: true })
 
       // Send to server (include file_ids if provided)
       const payload: { message: string; file_ids?: string[] } = { message: content }
