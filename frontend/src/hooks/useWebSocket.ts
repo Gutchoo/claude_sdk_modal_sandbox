@@ -159,6 +159,13 @@ export function useWebSocket(sessionId: string | null) {
     contentBlocksRef.current = []
     setStreamingStatus({ isActive: false })
     setIsLoading(false)
+
+    // Stop any running timer and reset elapsed time when session changes
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
+    timerStartRef.current = null
     setElapsedTime(0)
 
     prevSessionIdRef.current = sessionId

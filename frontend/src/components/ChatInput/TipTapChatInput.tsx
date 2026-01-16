@@ -73,7 +73,6 @@ interface TipTapChatInputProps {
   files: FileInfo[]
   isConnected: boolean
   isLoading: boolean
-  elapsedTime?: number
   onSendMessage: (content: string, fileMentions?: FileMentionData[]) => void
   onStopGeneration?: () => void
 }
@@ -82,7 +81,6 @@ export function TipTapChatInput({
   files,
   isConnected,
   isLoading,
-  elapsedTime = 0,
   onSendMessage,
   onStopGeneration,
 }: TipTapChatInputProps) {
@@ -196,8 +194,8 @@ export function TipTapChatInput({
     if (editor) {
       editor.extensionManager.extensions.forEach((extension) => {
         if (extension.name === 'placeholder') {
-          // @ts-expect-error - accessing internal options
-          extension.options.placeholder = placeholderText
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (extension.options as any).placeholder = placeholderText
           editor.view.dispatch(editor.state.tr)
         }
       })
@@ -290,11 +288,6 @@ export function TipTapChatInput({
     editor.commands.clearContent()
   }, [editor, isLoading, isConnected, getTextContent, getFileMentions, onSendMessage])
 
-  // Format elapsed time
-  const formatElapsedTime = (ms: number): string => {
-    return (ms / 1000).toFixed(1) + 's'
-  }
-
   return (
     <div className="bg-muted/50 rounded-xl border border-border relative">
       {/* Editor */}
@@ -349,19 +342,8 @@ export function TipTapChatInput({
       </AnimatePresence>
 
       {/* Bottom bar */}
-      <div className="flex items-center justify-between px-3 py-2">
-        {/* Left side - elapsed time */}
-        <div className="flex items-center gap-2">
-          {elapsedTime > 0 && (
-            <span
-              className={`text-xs font-mono ${isLoading ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              {formatElapsedTime(elapsedTime)}
-            </span>
-          )}
-        </div>
-
-        {/* Right side - model picker and send/stop button */}
+      <div className="flex items-center justify-end px-3 py-2">
+        {/* Model picker and send/stop button */}
         <div className="flex items-center gap-2">
           {/* Model Picker */}
           <DropdownMenu>

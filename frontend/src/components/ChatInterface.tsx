@@ -173,14 +173,13 @@ export function ChatInterface({
   onStopGeneration,
 }: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = useCallback(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      })
-    }
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    })
   }, [])
 
   useEffect(() => {
@@ -200,9 +199,19 @@ export function ChatInterface({
               </p>
             </div>
           )}
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
+          {messages.map((message, index) => {
+            // Show timer on the last assistant message
+            const isLastMessage = index === messages.length - 1
+            const showTimer = message.role === 'assistant' && isLastMessage && elapsedTime > 0
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                elapsedTime={showTimer ? elapsedTime : undefined}
+                isTimerActive={showTimer && isLoading}
+              />
+            )
+          })}
           {/* Streaming Status Indicator */}
           {streamingStatus?.isActive && streamingStatus.currentTool && (
             <StreamingIndicator
@@ -219,6 +228,8 @@ export function ChatInterface({
               </div>
             </div>
           )}
+          {/* Scroll anchor */}
+          <div ref={bottomRef} />
         </div>
       </ScrollArea>
 
@@ -229,7 +240,6 @@ export function ChatInterface({
             files={files}
             isConnected={isConnected}
             isLoading={isLoading}
-            elapsedTime={elapsedTime}
             onSendMessage={onSendMessage}
             onStopGeneration={onStopGeneration}
           />
@@ -240,7 +250,7 @@ export function ChatInterface({
   )
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, elapsedTime, isTimerActive }: { message: Message; elapsedTime?: number; isTimerActive?: boolean }) {
   const isUser = message.role === 'user'
   const { scrollToBottom } = useContext(ScrollContext)
   // Initialize with the message content for non-streaming messages
@@ -388,6 +398,9 @@ function MessageBubble({ message }: { message: Message }) {
     <div className="flex gap-4">
       <div className="flex-1 space-y-3">
         {renderContentBlocks()}
+        {elapsedTime !== undefined && (
+          <ResponseTimer elapsedTime={elapsedTime} isActive={isTimerActive} />
+        )}
       </div>
     </div>
   )
@@ -448,6 +461,26 @@ function LoadingDots() {
       <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
       <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
     </span>
+  )
+}
+
+// Response Timer - shows elapsed time at the bottom of the agent's response
+function ResponseTimer({ elapsedTime, isActive }: { elapsedTime: number; isActive?: boolean }) {
+  const formatElapsedTime = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    if (minutes > 0) {
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+    }
+    return `${(ms / 1000).toFixed(1)}s`
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+      <span className="font-mono">{formatElapsedTime(elapsedTime)}</span>
+    </div>
   )
 }
 
