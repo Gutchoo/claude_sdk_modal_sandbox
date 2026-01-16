@@ -1,0 +1,18 @@
+/* TipTap Placeholder styles */
+.tiptap p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Ensure the editor takes full width */
+.tiptap {
+  width: 100%;
+}
+
+/* Style paragraphs in the editor */
+.tiptap p {
+  margin: 0;
+}
